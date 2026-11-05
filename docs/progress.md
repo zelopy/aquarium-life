@@ -79,7 +79,7 @@
 - [ ] 변이 획득 규칙: 등급별 가격, "유니크는 번식으로만 획득" 여부 (v0.2 상점·번식 때 결정)
 - [ ] 그래픽 스타일: 현재는 Canvas 도형 기반 플랫 스타일 (기획서 14 미결 사항)
 - 웹 배포 + 보상형 광고 설계: `docs/superpowers/specs/2026-11-05-web-deploy-and-rewarded-ads-design.md` (S3+CloudFront 배포 먼저, 보상형 광고는 v0.2 코인·인벤토리 이후)
-- 이 폴더는 아직 git 저장소가 아니다.
+- Git 저장소: https://github.com/zelopy/aquarium-life (기본 브랜치 `main`)
 - 사용 버전: Vite 8.3.6, TypeScript 7.0.2, Node 24
 - `favicon.ico` 404 콘솔 오류가 있다. 동작에는 영향 없음.
 
