@@ -2,3 +2,7 @@ node_modules
 dist
 *.local
 .playwright-mcp
+
+# 로컬 전용 문서
+docs/design.md
+docs/progress.md
