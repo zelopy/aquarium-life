@@ -3,15 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="물고기에게 먹이를 주고 수질을 관리하며 나만의 수족관을 키우는 웹 게임" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>물고기 키우기 수족관</title>
     <style>
       html, body { margin: 0; height: 100%; background: #10161c; overflow: hidden; }
       body { display: flex; align-items: center; justify-content: center; }
       canvas { display: block; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+      .privacy-link { position: fixed; right: 8px; bottom: 6px; font-size: 11px; color: #fff; opacity: 0.4; text-decoration: none; }
+      .privacy-link:hover { opacity: 0.8; }
     </style>
   </head>
   <body>
     <canvas id="tank"></canvas>
+    <a class="privacy-link" href="/privacy.html">개인정보처리방침</a>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
