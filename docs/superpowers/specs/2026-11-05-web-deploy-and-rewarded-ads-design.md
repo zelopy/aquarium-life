@@ -30,7 +30,7 @@
 - 배너 광고, 전면 광고, 자동 재생 광고
 - 맞춤형(개인화) 광고
 - 서버 측 보상 검증, 계정, 클라우드 저장
-- GitHub Actions 자동 배포 (이 폴더가 git 저장소가 된 뒤 별도로 검토)
+- CI에서 인프라(CDK) 배포. 인프라 변경은 로컬에서 한다 (3.4)
 
 ---
 
@@ -65,20 +65,34 @@
 |---|---|---|
 | `index.html` | `no-cache` (매번 재검증) | 배포하면 바로 새 버전이 보이게 |
 | `assets/*` | `max-age=31536000, immutable` | Vite가 파일명에 해시를 붙임 |
-| 그 밖의 `public/` 파일 (`ads.txt`, `privacy.html` 등) | 짧게 (예: 1시간) | 가끔 바뀜 |
+| 그 밖의 `public/` 파일 (`ads.txt`, `privacy.html` 등) | `no-cache` | 파일이 작아서 매번 재검증해도 부담이 없고, 규칙이 단순해진다 |
 
 ### 3.3 인프라 코드 (`infra/`)
 - 게임 코드와 분리된 CDK 앱이다. `package.json`도 따로 둔다.
 - 스택 구성
   - `CertificateStack` (us-east-1): ACM 인증서
-  - `SiteStack`: S3, CloudFront, Route 53 레코드, `BucketDeployment`(dist 업로드 + 무효화), 예산 알림
+  - `SiteStack`: S3, CloudFront, Route 53 레코드, 예산 알림
+  - `GithubDeployStack`: GitHub OIDC 공급자 + 배포용 IAM 역할 (3.10)
+- 게임 파일 업로드는 CDK가 아니라 배포 스크립트가 한다 (3.4). CDK `BucketDeployment`는 쓰지 않는다. 두 곳에서 같은 버킷을 고치면 서로 덮어쓰기 때문이다.
+- 스택 출력값: 버킷 이름, CloudFront 배포 ID, 배포 역할 ARN. GitHub 저장소 변수에 넣는다.
 - 도메인 이름과 알림 이메일은 CDK context(`cdk.json`)로 받는다. 코드에 하드코딩하지 않는다.
 - 도메인 **구매**는 CDK로 할 수 없으므로 콘솔에서 직접 한 번 한다. 구매하면 생기는 호스팅 영역은 CDK에서 조회(`HostedZone.fromLookup`)해서 쓴다.
 
 ### 3.4 배포 명령
-- 루트 `package.json`에 `npm run deploy`를 추가한다.
-  1. `npm run build` (게임 빌드 → `dist/`)
-  2. `cd infra && npx cdk deploy --all` (S3 업로드와 CloudFront 무효화 포함)
+배포를 **인프라**와 **게임 파일** 두 가지로 나눈다.
+
+| 종류 | 언제 | 방법 |
+|---|---|---|
+| 인프라 | 처음 한 번, 그리고 AWS 구성을 바꿀 때 | 로컬에서 `cd infra && npx cdk deploy --all` |
+| 게임 파일 | `main`에 push할 때마다 | GitHub Actions가 자동으로 (3.10) |
+| 게임 파일 (수동) | CI가 안 될 때 | 로컬에서 `npm run deploy` |
+
+- 게임 파일 배포 스크립트 `scripts/deploy.sh`를 CI와 로컬이 함께 쓴다.
+  1. `aws s3 sync dist/assets s3://<버킷>/assets --cache-control "public,max-age=31536000,immutable"`
+  2. `aws s3 sync dist s3://<버킷> --exclude "assets/*" --cache-control "no-cache"` (3.2의 "그 밖의 파일"도 여기 포함. `ads.txt`·`privacy.html`도 자주 바뀌지 않으므로 `no-cache`로 단순화한다)
+  3. `aws s3 sync dist s3://<버킷> --delete` 로 지운 파일 정리 (새 파일을 먼저 올린 뒤 지워서, 배포 중에 옛 `index.html`이 없는 파일을 가리키는 일이 없게 한다)
+  4. `aws cloudfront create-invalidation --paths "/index.html" "/"`
+- 버킷 이름과 배포 ID는 환경 변수(`S3_BUCKET`, `CLOUDFRONT_DISTRIBUTION_ID`)로 받는다.
 - 처음 한 번은 `cdk bootstrap`이 필요하다 (배포 대상 리전과 us-east-1 둘 다).
 
 ### 3.5 함께 처리할 것
@@ -113,6 +127,22 @@
 - 프로덕션에서 `?variants`가 동작하지 않는다.
 - 콘솔 오류가 없다 (favicon 404 포함).
 - 다시 배포한 뒤 새로고침하면 바로 새 버전이 보인다.
+- `main`에 push하면 Actions가 성공하고, 몇 분 안에 사이트에 반영된다.
+- PR에서는 빌드 검사만 돌고 배포는 하지 않는다.
+
+### 3.10 GitHub Actions 자동 배포
+- 저장소: `zelopy/aquarium-life`, 기본 브랜치 `main`
+- 워크플로 파일
+  - `.github/workflows/ci.yml`: `pull_request` 때 `npm ci` + `npm run build`(타입 검사 포함). AWS 권한 없음.
+  - `.github/workflows/deploy.yml`: `main` push와 수동 실행(`workflow_dispatch`) 때 빌드 → AWS 인증 → `scripts/deploy.sh`.
+- **AWS 인증은 OIDC로 한다.** 액세스 키를 GitHub에 저장하지 않는다.
+  - `aws-actions/configure-aws-credentials`로 역할을 맡는다. 워크플로에 `permissions: id-token: write, contents: read`.
+  - 역할 신뢰 정책: `token.actions.githubusercontent.com`, `aud = sts.amazonaws.com`, `sub = repo:zelopy/aquarium-life:ref:refs/heads/main`. **`main` 브랜치에서만** 역할을 맡을 수 있다.
+  - 역할 권한 (최소): 사이트 버킷에 대한 `s3:ListBucket`, `s3:PutObject`, `s3:DeleteObject`, 해당 배포에 대한 `cloudfront:CreateInvalidation`.
+- GitHub 저장소 **변수**(비밀 아님): `AWS_REGION`, `AWS_ROLE_ARN`, `S3_BUCKET`, `CLOUDFRONT_DISTRIBUTION_ID`. 값은 CDK 출력에서 가져온다.
+- 동시 배포 방지: `concurrency: deploy-production`, 진행 중인 배포는 취소하지 않고 순서대로 처리.
+- Node 버전: 24 (로컬과 같게). `actions/setup-node`에서 npm 캐시 사용.
+- 액션 버전은 메이저 태그로 고정한다 (예: `@v4`).
 
 ---
 
