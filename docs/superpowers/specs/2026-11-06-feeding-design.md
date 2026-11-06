@@ -81,11 +81,11 @@ Hud.update(clock)  ─ HTML 텍스트 갱신
 - 쫓는 중에는 서식 위치(`zone`) 세로 제한을 받지 않는다. 지금 위치 제한은 수면 아래 10px부터 바닥 위 10px까지다.
 
 ### 3.3 `FeedingSystem` (`src/systems/FeedingSystem.ts`)
-`update(dt, fishes, foods)`. 상태를 갖지 않는 순수 로직이다.
+`update(dt, fishes, foods, tank)`. 상태를 갖지 않는 순수 로직이다.
 1. 모든 물고기의 `fullness`를 `fullnessDecayPerGameHour × gameHours(dt)`만큼 줄인다 (최소 0).
 2. 각 물고기에 대해:
-   - `fullness ≥ fullThreshold`이면 쫓던 중일 때 `stopChasing()`을 부르고 넘어간다.
-   - 먹을 수 있는 알갱이 중 입에서 가장 가까운 것을 고른다. 없으면 쫓던 중일 때 `stopChasing()`.
+   - `fullness ≥ fullThreshold`이면 쫓던 중일 때 `stopChasing(tank)`을 부르고 넘어간다.
+   - 먹을 수 있는 알갱이 중 입에서 가장 가까운 것을 고른다. 없으면 쫓던 중일 때 `stopChasing(tank)`.
    - 있으면 `chase(알갱이 위치)`를 부른다. 입과 알갱이의 거리가 `eatRadiusPx` 이하이면 알갱이를 목록에서 빼고 `fullness += fullnessPerFlake`를 더한다 (최대 100).
 3. "먹을 수 있는 알갱이": 구피는 `state === "sinking"`인 것만 먹는다. 4단계에서 종 `traits`(예: 바닥 먹이를 먹는 종)로 넓힌다.
 4. 두 마리가 같은 알갱이를 노려도 괜찮다. 먼저 닿는 쪽이 먹고, 다른 쪽은 다음 프레임에 새 목표를 고른다.

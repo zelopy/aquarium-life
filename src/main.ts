@@ -26,6 +26,7 @@ window.addEventListener("resize", fit);
 
 // 수면 띠를 누르면 먹이를 준다.
 canvas.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0) return;
   const { x, y } = renderer.toLogical(e.clientX, e.clientY);
   if (game.tank.isFeedingZone(y)) game.dropFood(x);
 });
