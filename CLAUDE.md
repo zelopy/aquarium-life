@@ -24,6 +24,7 @@
 - **`main`에 push하면 GitHub Actions가 자동 배포한다.** PR에서는 테스트만 돈다.
 - 로컬 수동 배포: `S3_BUCKET=... CLOUDFRONT_DISTRIBUTION_ID=... npm run deploy` (AWS 로그인 필요).
 - 인프라 변경: `cd infra && npm test && npx cdk deploy --all`. `alertEmail`은 git에 올라가지 않는 `infra/cdk.context.json`에 있다 (공개 금지).
+- AWS 작업은 IAM 사용자 `aquarium-operator`로 `aws login` 해서 한다 (루트 사용 금지). 권한: CDK 부트스트랩 역할 맡기, 사이트 버킷 배포·캐시 무효화, 콘솔 조회(정책 `AquariumOperatorAccess`). IAM 변경이 필요하면 루트로 따로 한다.
 - DNS는 무료 도메인 서비스에서 직접 관리한다 (Route 53 없음). 인증서를 바꿀 때는 새 인증서의 검증 CNAME을 먼저 넣고 발급된 뒤 교체한다.
 
 ## 구조 원칙
