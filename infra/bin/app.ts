@@ -13,7 +13,6 @@ const certStack = new CertificateStack(app, "AquariumCertificate", {
   env: { account, region: "us-east-1" },
   crossRegionReferences: true,
   domainName: config.domainName,
-  hostedZoneId: config.hostedZoneId,
 });
 
 const siteStack = new SiteStack(app, "AquariumSite", {

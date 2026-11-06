@@ -8,7 +8,6 @@ import { SiteStack } from "../lib/site-stack.js";
 
 const config: SiteConfig = {
   domainName: "example.com",
-  hostedZoneId: "Z123",
   alertEmail: "a@example.com",
   githubRepo: "zelopy/aquarium-life",
 };
@@ -19,7 +18,6 @@ function build(oidcProviderArn?: string) {
     env: { account: "111111111111", region: "us-east-1" },
     crossRegionReferences: true,
     domainName: config.domainName,
-    hostedZoneId: config.hostedZoneId,
   });
   const site = new SiteStack(app, "Site", {
     env: { account: "111111111111", region: "ap-northeast-2" },

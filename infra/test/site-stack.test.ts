@@ -7,7 +7,6 @@ import { SiteStack } from "../lib/site-stack.js";
 
 const config: SiteConfig = {
   domainName: "example.com",
-  hostedZoneId: "Z123",
   alertEmail: "a@example.com",
   githubRepo: "owner/repo",
 };
@@ -18,7 +17,6 @@ describe("SiteStack", () => {
     env: { account: "111111111111", region: "us-east-1" },
     crossRegionReferences: true,
     domainName: config.domainName,
-    hostedZoneId: config.hostedZoneId,
   });
   const stack = new SiteStack(app, "Site", {
     env: { account: "111111111111", region: "ap-northeast-2" },
@@ -56,7 +54,7 @@ describe("SiteStack", () => {
   it("배포 설정", () => {
     template.hasResourceProperties("AWS::CloudFront::Distribution", {
       DistributionConfig: Match.objectLike({
-        Aliases: ["example.com", "www.example.com"],
+        Aliases: ["example.com"],
         DefaultRootObject: "index.html",
         HttpVersion: "http2and3",
         DefaultCacheBehavior: Match.objectLike({
@@ -98,13 +96,9 @@ describe("SiteStack", () => {
     });
   });
 
-  it("루트·www 별칭 A/AAAA 4개", () => {
-    template.resourceCountIs("AWS::Route53::RecordSet", 4);
-    for (const name of ["example.com.", "www.example.com."]) {
-      for (const type of ["A", "AAAA"]) {
-        template.hasResourceProperties("AWS::Route53::RecordSet", { Name: name, Type: type });
-      }
-    }
+  it("Route 53 리소스를 만들지 않는다", () => {
+    template.resourceCountIs("AWS::Route53::RecordSet", 0);
+    template.resourceCountIs("AWS::Route53::HostedZone", 0);
   });
 
   it("월 5달러 예산 알림", () => {
@@ -128,7 +122,7 @@ describe("SiteStack", () => {
 
   it("출력", () => {
     const outputs = template.toJSON().Outputs;
-    expect(Object.keys(outputs)).toEqual(expect.arrayContaining(["BucketName", "DistributionId", "SiteUrl"]));
+    expect(Object.keys(outputs)).toEqual(expect.arrayContaining(["BucketName", "DistributionId", "DistributionDomainName", "SiteUrl"]));
     expect(outputs.SiteUrl.Value).toBe("https://example.com");
   });
 });

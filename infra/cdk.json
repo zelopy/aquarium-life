@@ -1,6 +1,7 @@
 {
   "app": "npx tsx bin/app.ts",
   "context": {
+    "domainName": "aquarium-life.n-e.kr",
     "githubRepo": "zelopy/aquarium-life",
     "@aws-cdk/core:defaultCrossStackReferences": "strong"
   }

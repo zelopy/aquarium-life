@@ -3,8 +3,6 @@ import type * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as budgets from "aws-cdk-lib/aws-budgets";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
-import * as route53 from "aws-cdk-lib/aws-route53";
-import * as targets from "aws-cdk-lib/aws-route53-targets";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import type { Construct } from "constructs";
 import type { SiteConfig } from "./config.js";
@@ -53,7 +51,7 @@ export class SiteStack extends Stack {
     });
 
     const distribution = new cloudfront.Distribution(this, "Distribution", {
-      domainNames: [domainName, `www.${domainName}`],
+      domainNames: [domainName],
       certificate,
       defaultRootObject: "index.html",
       httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
@@ -66,16 +64,6 @@ export class SiteStack extends Stack {
         responseHeadersPolicy,
       },
     });
-
-    const zone = route53.HostedZone.fromHostedZoneAttributes(this, "Zone", {
-      hostedZoneId: config.hostedZoneId,
-      zoneName: domainName,
-    });
-    const target = route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution));
-    for (const [key, recordName] of [["Root", domainName], ["Www", `www.${domainName}`]] as const) {
-      new route53.ARecord(this, `${key}A`, { zone, recordName, target });
-      new route53.AaaaRecord(this, `${key}Aaaa`, { zone, recordName, target });
-    }
 
     new budgets.CfnBudget(this, "MonthlyBudget", {
       budget: {
@@ -101,6 +89,7 @@ export class SiteStack extends Stack {
 
     new CfnOutput(this, "BucketName", { value: bucket.bucketName });
     new CfnOutput(this, "DistributionId", { value: distribution.distributionId });
+    new CfnOutput(this, "DistributionDomainName", { value: distribution.distributionDomainName });
     new CfnOutput(this, "SiteUrl", { value: `https://${domainName}` });
   }
 }

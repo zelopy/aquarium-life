@@ -1,6 +1,5 @@
 export interface SiteConfig {
   domainName: string;
-  hostedZoneId: string;
   alertEmail: string;
   githubRepo: string;
   githubOidcProviderArn?: string;
@@ -19,7 +18,6 @@ export function readConfig(get: (key: string) => unknown): SiteConfig {
   const repo = get("githubRepo");
   return {
     domainName: required(get, "domainName"),
-    hostedZoneId: required(get, "hostedZoneId"),
     alertEmail: required(get, "alertEmail"),
     githubRepo: typeof repo === "string" && repo !== "" ? repo : "zelopy/aquarium-life",
     githubOidcProviderArn: typeof arn === "string" && arn !== "" ? arn : undefined,
