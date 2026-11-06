@@ -61,18 +61,20 @@ Hud.update(clock)  ─ HTML 텍스트 갱신
 ### 3.1 `Food` (`src/entities/Food.ts`)
 - 필드: `x`, `y`, `state: "sinking" | "settled"`, `settledHoursLeft`, `spin`(회전 연출용), 흔들림 위상
 - `update(dt, tank)`
-  - `sinking`: `flakeSinkCm × pxPerCm`로 아래로 이동하고, 가로로 살짝 흔들린다. `tank.floorY`에 닿으면 `settled`가 된다.
+  - `sinking`: `flakeSinkCm × pxPerCm`로 아래로 이동하고, 가로로 살짝 흔들린다. `tank.floorY - 2`에 닿으면 `settled`가 되고 그 자리에 멈춘다. 모래 경계선이 ±6px 물결 모양이라 일부는 모래에 살짝 묻혀 보일 수 있는데, 이는 허용한다.
   - `settled`: `settledHoursLeft`를 게임 시간만큼 줄인다.
 - `get expired`: `settled`이고 남은 시간이 0 이하
 - `get opacity`: `sinking`이면 1. `settled`이면 남은 시간 비율에 따라 1 → 0.
-- 게임 시간 변환은 `BALANCE.realSecondsPerGameDay`를 쓰는 공용 함수(`gameHours(dtSeconds)`)로 한다.
+- 게임 시간 변환은 `src/game/Clock.ts`에 공용 함수 `gameHours(realSeconds)`로 내보낸다. `Clock.update`도 이 함수를 쓰도록 바꾼다.
 
 ### 3.2 `Fish` 변경 (`src/entities/Fish.ts`)
 - `fullness: number`: 생성 시 `startFullness`
-- `chase(x, y)`: 떠돌기 목표를 이 지점으로 바꾸고 속도 배율을 `chaseSpeedFactor`로 둔다. 쫓는 중에는 목표 재선정 타이머로 떠돌기 목표가 덮어쓰이지 않는다.
+- `chase(x, y)`: (x, y)는 **입이 닿아야 할 지점**이다. 몸 중심 목표를 `x - facing부호 × lengthPx / 2`, `y`로 잡아서 몸 중심이 아니라 입이 알갱이에 닿게 한다. 속도 배율은 `chaseSpeedFactor`로 둔다.
+  - 몸 중심을 알갱이로 보내면, 위아래에서 다가갈 때 입이 가로로 22px 떨어진 채 알갱이 위에 멈춰 영영 먹지 못한다. 그래서 입 기준으로 잡는다.
+  - 쫓는 중에는 떠돌기 목표 재선정(목표 도착 `dist < 8`, `retargetTimer` 만료)이 일어나지 않는다.
 - `stopChasing()`: 쫓기를 끝내고 바로 새 떠돌기 목표를 고른다.
 - `get chasing: boolean`
-- `get mouth: { x, y }`: 머리 끝 위치. `x + facing × lengthPx / 2`
+- `get mouth: { x, y }`: 머리 끝 위치. `x + facing × lengthPx / 2`. `facing`은 방향을 바꾸는 동안 -1~1 사이의 연속값이고, 그림도 이 값으로 좌우가 눌려 그려지므로(`drawGuppy`의 `flip`) 화면상 머리 위치와 맞는다.
 - 쫓는 중에는 서식 위치(`zone`) 세로 제한을 받지 않는다. 지금 위치 제한은 수면 아래 10px부터 바닥 위 10px까지다.
 
 ### 3.3 `FeedingSystem` (`src/systems/FeedingSystem.ts`)
@@ -110,7 +112,9 @@ Hud.update(clock)  ─ HTML 텍스트 갱신
   - 0시는 "오전 12시", 12시는 "오후 12시", 13시는 "오후 1시"
   - 🌙는 `clock.isNight`일 때
 - 문자열 생성은 순수 함수 `formatClock(day, hour, isNight)`로 분리한다. `Hud`는 값이 바뀔 때만 DOM 텍스트를 바꾼다.
-- 글꼴 크기는 캔버스 배율에 맞춰 조정한다. 반투명 어두운 배경의 둥근 상자에 흰 글씨로 한다.
+- **HUD는 수면 띠 위에 겹치므로 `pointer-events: none`으로 둔다.** 그러지 않으면 HUD 상자 아래 수면을 눌러도 먹이가 떨어지지 않는다. 이후 버튼을 넣을 때는 버튼에만 이벤트를 켠다.
+- 글꼴 크기: `Renderer.resize`가 화면 배율(`scale`)을 돌려주고, `main.ts`의 `fit()`이 `hud.resize(scale)`로 넘긴다. 기본 16px × 배율.
+- 모양: 반투명 어두운 배경의 둥근 상자에 흰 글씨.
 
 ## 4. 테스트
 
@@ -119,6 +123,7 @@ Hud.update(clock)  ─ HTML 텍스트 갱신
 - `FeedingSystem.test.ts`
   - 게임 하루 경과 시 포만감 100 → 0, 0 아래로 내려가지 않음
   - 배고픈 물고기가 가장 가까운 가라앉는 알갱이를 쫓음 (`chasing`과 목표 위치)
+  - 바로 위나 아래에 있는 알갱이도 실제로 먹음 (시뮬레이션 루프로 몇 초 돌려 확인, 입 기준 목표 회귀 방지)
   - 입이 닿으면 알갱이가 사라지고 +8, 100을 넘지 않음
   - 포만감 90 이상이면 쫓지 않고, 쫓던 중이면 멈춤
   - `settled` 알갱이는 구피가 먹지 않음
@@ -129,6 +134,7 @@ Hud.update(clock)  ─ HTML 텍스트 갱신
 - 수면 클릭 → 알갱이 4개가 떨어지고 구피 두 마리가 먹으러 감
 - 배부른 뒤 더 주면 바닥에 남았다가 서서히 사라짐
 - 수면 띠에서 커서가 손가락 모양으로 바뀜, HUD 표시, 콘솔 오류 0
+- HUD 상자 바로 아래 수면을 눌러도 먹이가 떨어짐
 - 스크린샷으로 확인
 
 ## 5. 함께 고칠 문서
