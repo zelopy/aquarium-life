@@ -23,12 +23,12 @@ describe("FeedingSystem", () => {
 
   it("배고픈 물고기는 가까운 알갱이를 쫓는다", () => {
     const fish = makeFish(400, 300);
-    const foods = [new Food(450, 300), new Food(700, 300)];
+    const foods = [new Food(700, 300), new Food(350, 300)];
     feeding.update(1 / 60, [fish], foods, tank);
     expect(fish.chasing).toBe(true);
     const startX = fish.x;
     for (let i = 0; i < 30; i++) fish.update(1 / 60, tank);
-    expect(fish.x).toBeGreaterThan(startX);
+    expect(fish.x).toBeLessThan(startX);
   });
 
   it("입 위치의 알갱이를 먹고 포만감이 늘어난다", () => {
