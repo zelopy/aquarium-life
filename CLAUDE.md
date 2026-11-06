@@ -16,6 +16,15 @@
 - `npm install`
 - `npm run dev` — 개발 서버
 - `npm run build` — 프로덕션 빌드
+- `npm test` — 단위 테스트 (`src/**/*.test.ts`)
+- `npm run test:deploy` — 배포 스크립트 테스트
+
+## 배포
+- 사이트: https://aquarium-life.n-e.kr (S3 + CloudFront, 서울 리전). 설계는 `docs/superpowers/specs/2026-11-05-web-deploy-and-rewarded-ads-design.md`.
+- **`main`에 push하면 GitHub Actions가 자동 배포한다.** PR에서는 테스트만 돈다.
+- 로컬 수동 배포: `S3_BUCKET=... CLOUDFRONT_DISTRIBUTION_ID=... npm run deploy` (AWS 로그인 필요).
+- 인프라 변경: `cd infra && npm test && npx cdk deploy --all`. `alertEmail`은 git에 올라가지 않는 `infra/cdk.context.json`에 있다 (공개 금지).
+- DNS는 무료 도메인 서비스에서 직접 관리한다 (Route 53 없음). 인증서를 바꿀 때는 새 인증서의 검증 CNAME을 먼저 넣고 발급된 뒤 교체한다.
 
 ## 구조 원칙
 - 디렉터리 구조는 `docs/design.md` 13.1을 따른다.
