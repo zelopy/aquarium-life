@@ -36,6 +36,8 @@ export const BALANCE = {
     chaseSpeedFactor: 1.3,
     /** 입이 이 거리(px) 안에 들면 먹는다 */
     eatRadiusPx: 8,
+    /** 수면 아래 이 깊이(px)까지 누르면 먹이를 준다 */
+    feedingZoneDepthPx: 60,
   },
 } as const;
 

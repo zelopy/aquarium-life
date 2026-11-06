@@ -1,4 +1,4 @@
-import { VIEW } from "./balance";
+import { BALANCE, VIEW } from "./balance";
 import type { Zone } from "../entities/species/types";
 
 export interface VerticalRange {
@@ -18,6 +18,11 @@ export class Tank {
   waterQuality = 100;
   temperature = 25;
   algae = 0;
+
+  /** 이 높이를 눌렀을 때 먹이를 주는 영역인지 */
+  isFeedingZone(y: number): boolean {
+    return y < this.surfaceY + BALANCE.feeding.feedingZoneDepthPx;
+  }
 
   /** 서식 위치(zone)에 해당하는 세로 범위 */
   zoneRange(zone: Zone): VerticalRange {
