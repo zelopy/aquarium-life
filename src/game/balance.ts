@@ -8,6 +8,8 @@ export const BALANCE = {
   /** 낮 시작 / 밤 시작 (게임 시) */
   dayStartHour: 6,
   nightStartHour: 19,
+  /** 시작할 때 받는 구피 수 (기획서 2장). 변이는 마리마다 따로 뽑는다 */
+  startGuppyCount: 2,
   /** 변이 등급별 등장 가중치 (상점·초기 지급 시) */
   variantRarityWeights: { normal: 70, rare: 25, unique: 5 },
 } as const;

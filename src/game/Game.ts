@@ -1,5 +1,6 @@
 import { Clock } from "./Clock";
 import { Tank } from "./Tank";
+import { BALANCE } from "./balance";
 import { Fish } from "../entities/Fish";
 import { SPECIES, rollVariant } from "../entities/species";
 import type { VariantConfig } from "../entities/species";
@@ -19,7 +20,9 @@ export class Game {
 
   constructor(options: GameOptions = {}) {
     const guppy = SPECIES.guppy;
-    const variants = options.showcase ? guppy.variants : [rollVariant(guppy)];
+    const variants = options.showcase
+      ? guppy.variants
+      : Array.from({ length: BALANCE.startGuppyCount }, () => rollVariant(guppy));
     for (const variant of variants) this.addGuppy(variant);
   }
 
