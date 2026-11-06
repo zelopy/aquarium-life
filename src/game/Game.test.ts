@@ -51,14 +51,27 @@ describe("Game.dropFood", () => {
     expect(game.foods).toHaveLength(BALANCE.feeding.maxFlakes);
   });
 
-  it("가득 차면 가라앉은 것부터 지운다", () => {
+  it("가득 차면 가라앉은(settled) 것부터 지운다", () => {
     const game = new Game();
     for (let i = 0; i < 10; i++) game.dropFood(480);
-    for (const f of game.foods.slice(0, 4)) f.state = "settled";
-    const settled = game.foods.slice(0, 4);
+    const oldestSinking = game.foods.slice(0, 4);
+    const settled = game.foods.slice(4, 8);
+    for (const f of settled) f.state = "settled";
     game.dropFood(480);
     expect(game.foods).toHaveLength(BALANCE.feeding.maxFlakes);
     for (const f of settled) expect(game.foods).not.toContain(f);
+    for (const f of oldestSinking) expect(game.foods).toContain(f);
+  });
+
+  it("settled가 없으면 오래된 떠 있는 것부터 지운다", () => {
+    const game = new Game();
+    for (let i = 0; i < 10; i++) game.dropFood(480);
+    const oldest = game.foods.slice(0, 4);
+    game.dropFood(480);
+    const newest = game.foods.slice(-4);
+    expect(game.foods).toHaveLength(BALANCE.feeding.maxFlakes);
+    for (const f of oldest) expect(game.foods).not.toContain(f);
+    for (const f of newest) expect(game.foods).toContain(f);
   });
 
   it("settled 알갱이는 게임 6시간이 지나면 사라진다", () => {
