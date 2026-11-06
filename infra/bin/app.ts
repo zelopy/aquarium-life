@@ -1,6 +1,7 @@
 import { App } from "aws-cdk-lib";
 import { CertificateStack } from "../lib/certificate-stack.js";
 import { readConfig } from "../lib/config.js";
+import { GithubDeployStack } from "../lib/github-deploy-stack.js";
 import { SiteStack } from "../lib/site-stack.js";
 
 const app = new App();
@@ -15,9 +16,17 @@ const certStack = new CertificateStack(app, "AquariumCertificate", {
   hostedZoneId: config.hostedZoneId,
 });
 
-new SiteStack(app, "AquariumSite", {
+const siteStack = new SiteStack(app, "AquariumSite", {
   env: { account, region: "ap-northeast-2" },
   crossRegionReferences: true,
   config,
   certificate: certStack.certificate,
+});
+
+new GithubDeployStack(app, "AquariumGithubDeploy", {
+  env: { account, region: "ap-northeast-2" },
+  bucket: siteStack.bucket,
+  distribution: siteStack.distribution,
+  githubRepo: config.githubRepo,
+  oidcProviderArn: config.githubOidcProviderArn,
 });
