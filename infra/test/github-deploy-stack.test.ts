@@ -9,7 +9,7 @@ import { SiteStack } from "../lib/site-stack.js";
 const config: SiteConfig = {
   domainName: "example.com",
   alertEmail: "a@example.com",
-  githubRepo: "zelopy/aquarium-life",
+  githubRepo: "zelopy@33337013/aquarium-life@1447069009",
 };
 
 function build(oidcProviderArn?: string) {
@@ -69,7 +69,7 @@ describe("GithubDeployStack", { timeout: 30000 }, () => {
     expect(cond).toEqual({
       StringEquals: {
         [`${PROVIDER}:aud`]: "sts.amazonaws.com",
-        [`${PROVIDER}:sub`]: "repo:zelopy/aquarium-life:ref:refs/heads/main",
+        [`${PROVIDER}:sub`]: "repo:zelopy@33337013/aquarium-life@1447069009:ref:refs/heads/main",
       },
     });
     expect(cond.StringLike).toBeUndefined();

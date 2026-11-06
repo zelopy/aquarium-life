@@ -2,7 +2,7 @@
   "app": "npx tsx bin/app.ts",
   "context": {
     "domainName": "aquarium-life.n-e.kr",
-    "githubRepo": "zelopy/aquarium-life",
+    "githubRepo": "zelopy@33337013/aquarium-life@1447069009",
     "@aws-cdk/core:defaultCrossStackReferences": "strong"
   }
 }

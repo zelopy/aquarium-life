@@ -6,7 +6,7 @@ const get = (o: Record<string, unknown>) => (k: string) => o[k];
 
 describe("readConfig", () => {
   it("필수 값을 읽고 githubRepo 기본값을 채운다", () => {
-    expect(readConfig(get(ok))).toEqual({ ...ok, githubRepo: "zelopy/aquarium-life", githubOidcProviderArn: undefined });
+    expect(readConfig(get(ok))).toEqual({ ...ok, githubRepo: "zelopy@33337013/aquarium-life@1447069009", githubOidcProviderArn: undefined });
   });
   it.each(["domainName", "alertEmail"])("%s 가 없으면 이름을 담아 throw", (key) => {
     expect(() => readConfig(get({ ...ok, [key]: undefined }))).toThrow(key);
