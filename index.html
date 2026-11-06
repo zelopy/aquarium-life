@@ -9,13 +9,15 @@
     <style>
       html, body { margin: 0; height: 100%; background: #10161c; overflow: hidden; }
       body { display: flex; align-items: center; justify-content: center; }
-      canvas { display: block; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+      canvas { display: block; touch-action: manipulation;border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+      #stage { position: relative; }
+      .hud { position: absolute; left: 1.5%; top: 2%; pointer-events: none; color: #fff; background: rgba(0,0,0,0.35); border-radius: 0.6em; padding: 0.25em 0.7em; font-family: system-ui, sans-serif; }
       .privacy-link { position: fixed; right: 8px; bottom: 6px; font-size: 11px; color: #fff; opacity: 0.4; text-decoration: none; }
       .privacy-link:hover { opacity: 0.8; }
     </style>
   </head>
   <body>
-    <canvas id="tank"></canvas>
+    <div id="stage"><canvas id="tank"></canvas></div>
     <a class="privacy-link" href="/privacy.html">개인정보처리방침</a>
     <script type="module" src="/src/main.ts"></script>
   </body>

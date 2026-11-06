@@ -2,7 +2,9 @@ import type { Game } from "../game/Game";
 import type { Tank } from "../game/Tank";
 import type { Fish } from "../entities/Fish";
 import { RARITY_LABEL, type Rarity } from "../entities/species/types";
+import { drawFood } from "./drawFood";
 import { drawGuppy } from "./drawGuppy";
+import { toLogical } from "./coords";
 import { seeded } from "./util";
 
 const RARITY_COLOR: Record<Rarity, string> = {
@@ -19,6 +21,8 @@ export interface RendererOptions {
 export class Renderer {
   private readonly ctx: CanvasRenderingContext2D;
   private background: HTMLCanvasElement | null = null;
+  private logicalWidth = 1;
+  private logicalHeight = 1;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -30,7 +34,7 @@ export class Renderer {
   }
 
   /** 논리 해상도를 유지하며 창 크기에 맞춰 캔버스를 확대한다. */
-  resize(logicalWidth: number, logicalHeight: number): void {
+  resize(logicalWidth: number, logicalHeight: number): number {
     const margin = 24;
     const scale = Math.min(
       (window.innerWidth - margin * 2) / logicalWidth,
@@ -45,6 +49,20 @@ export class Renderer {
     this.canvas.height = Math.floor(cssH * dpr);
     const k = (cssW * dpr) / logicalWidth;
     this.ctx.setTransform(k, 0, 0, k, 0, 0);
+    this.logicalWidth = logicalWidth;
+    this.logicalHeight = logicalHeight;
+    return cssW / logicalWidth;
+  }
+
+  /** 화면 좌표를 논리 좌표로 바꾼다. */
+  toLogical(clientX: number, clientY: number): { x: number; y: number } {
+    return toLogical(
+      clientX,
+      clientY,
+      this.canvas.getBoundingClientRect(),
+      this.logicalWidth,
+      this.logicalHeight,
+    );
   }
 
   render(game: Game): void {
@@ -54,6 +72,7 @@ export class Renderer {
 
     ctx.drawImage(this.background, 0, 0, tank.width, tank.height);
     this.drawLightRays(tank, game.elapsed);
+    for (const food of game.foods) drawFood(ctx, food);
     for (const fish of game.fishes) this.drawFish(fish);
     this.drawSurface(tank, game.elapsed);
     this.drawGlass(tank);
