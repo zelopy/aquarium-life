@@ -28,7 +28,7 @@ export class Fish {
   private isChasing = false;
   private chaseX = 0;
   /** 포만감 0~100 */
-  fullness = BALANCE.feeding.startFullness;
+  fullness: number = BALANCE.feeding.startFullness;
 
   constructor(
     readonly species: SpeciesConfig,
