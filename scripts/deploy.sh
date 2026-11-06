@@ -4,6 +4,10 @@
 # 선택: AWS_BIN(기본 aws), DIST_DIR(기본 dist)
 set -euo pipefail
 
+# Git Bash(MSYS)가 /index.html 같은 인자를 Windows 경로로 바꾸지 않게 한다. Linux에서는 영향 없음.
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL="*"
+
 AWS_BIN="${AWS_BIN:-aws}"
 DIST_DIR="${DIST_DIR:-dist}"
 

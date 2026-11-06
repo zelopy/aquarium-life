@@ -62,5 +62,9 @@ else
   echo "--- expected"; echo "$EXPECTED"; echo "--- actual"; cat "$LOG" 2>/dev/null; cat "$TMP/err"
 fi
 
+# 5. MSYS 경로 변환 방지 (Git Bash에서 /index.html 이 바뀌지 않게)
+if grep -q "^export MSYS_NO_PATHCONV=1" "$HERE/deploy.sh"; then
+  pass "MSYS_NO_PATHCONV=1 export"; else fail "MSYS_NO_PATHCONV=1 export"; fi
+
 [ "$FAILED" = 0 ] || exit 1
 echo "모든 테스트 통과"
