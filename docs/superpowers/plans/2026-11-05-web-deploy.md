@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 게임을 S3 + CloudFront + Route 53으로 공개 배포하고, `main` push 때 GitHub Actions가 자동으로 게임 파일을 올리게 한다.
+**Goal:** 게임을 S3 + CloudFront로 공개 배포하고(도메인은 무료 도메인 `aquarium-life.n-e.kr`, DNS는 그 서비스에서 관리), `main` push 때 GitHub Actions가 자동으로 게임 파일을 올리게 한다.
 
 **Architecture:** `infra/`에 독립된 CDK 앱(스택 3개: 인증서·사이트·GitHub 배포 역할)을 둔다. 인프라는 로컬에서 `cdk deploy`로만 바꾸고, 게임 파일은 `scripts/deploy.sh`가 `aws s3 sync` + 캐시 무효화로 올린다. 이 스크립트를 CI(OIDC 역할)와 로컬 `npm run deploy`가 함께 쓴다.
 
@@ -357,28 +357,93 @@ git commit -m "ci: add PR checks and OIDC-based deploy workflow"
 
 ---
 
-### Task 7: 첫 배포 (사용자와 함께) + 문서
+### Task 8: 무료 도메인 대응 — Route 53 제거, 인증서 수동 DNS 검증 (Task 7보다 먼저)
 
-이 태스크는 AWS 계정에 실제 리소스를 만든다. 👤 표시는 사용자가 직접 하는 단계다.
+> 2026-11-06 변경. AWS 프리 플랜에서 Route 53 도메인을 쓸 수 없어 무료 도메인 `aquarium-life.n-e.kr`을 쓴다. DNS 레코드는 사용자가 도메인 서비스 화면에 직접 넣는다. 그 서비스가 도메인 자체 CNAME과 `_`로 시작하는 하위 이름 CNAME을 지원함을 확인했다. 스펙 3.1·3.3 참고.
 
 **Files:**
-- Modify: `infra/cdk.json` (context 값), `CLAUDE.md`, `docs/progress.md`(git 무시 파일)
+- Modify: `infra/lib/config.ts`, `infra/lib/certificate-stack.ts`, `infra/lib/site-stack.ts`, `infra/bin/app.ts`, `infra/cdk.json`
+- Modify tests: `infra/test/config.test.ts`, `infra/test/certificate-stack.test.ts`, `infra/test/site-stack.test.ts`, `infra/test/github-deploy-stack.test.ts`(픽스처만)
 
-- [ ] **Step 1: 👤 Route 53에서 도메인 구매.** 끝나면 도메인 이름과 호스팅 영역 ID를 알려 준다 (`aws route53 list-hosted-zones`로도 확인 가능).
+**Interfaces (변경 후):**
+```ts
+export interface SiteConfig {
+  domainName: string;          // "aquarium-life.n-e.kr"
+  alertEmail: string;          // 비공개: infra/cdk.context.json 또는 -c 로만
+  githubRepo: string;          // 기본값 "zelopy/aquarium-life"
+  githubOidcProviderArn?: string;
+}
+export class CertificateStack extends Stack {
+  readonly certificate: acm.ICertificate;
+  constructor(scope: Construct, id: string, props: StackProps & { domainName: string });
+}
+// SiteStack: props 그대로 { config, certificate }. bucket / distribution 필드 그대로.
+// CfnOutput: BucketName, DistributionId, DistributionDomainName(새로), SiteUrl
+```
+
+- [ ] **Step 1: 테스트를 먼저 고친다 (RED)**
+  - config: `hostedZoneId`를 픽스처와 필수 키 목록에서 뺀다. 필수 키는 `domainName`, `alertEmail` 두 개. `hostedZoneId`를 넘겨도 결과에 들어가지 않는다.
+  - certificate: `DomainName = "example.com"`, `ValidationMethod = "DNS"`, `SubjectAlternativeNames` 없음, `DomainValidationOptions` 없음(= 호스팅 영역 자동 검증 없음, 수동 검증).
+  - site: `Aliases = ["example.com"]`, `AWS::Route53::RecordSet` 0개, `AWS::Route53::HostedZone` 0개, 출력 `DistributionDomainName` 존재. 나머지 단언(S3·OAC·캐시·헤더·예산)은 그대로.
+  - github-deploy: 스택을 만드는 픽스처에서 `hostedZoneId`만 뺀다. 단언은 바꾸지 않는다.
+
+- [ ] **Step 2: `cd infra && npm test` → FAIL (위 단언들)**
+
+- [ ] **Step 3: 구현**
+  - `readConfig`: `hostedZoneId` 제거.
+  - `CertificateStack`: 호스팅 영역 제거, `acm.Certificate({ domainName, validation: CertificateValidation.fromDns() })` (영역 없이 = 수동 검증).
+  - `SiteStack`: 호스팅 영역·Route 53 레코드 제거, `domainNames: [domainName]`, `DistributionDomainName` 출력 추가.
+  - `bin/app.ts`: 인증서 스택에 `hostedZoneId` 넘기지 않음.
+  - `infra/cdk.json` context에 `"domainName": "aquarium-life.n-e.kr"` 추가. `alertEmail`은 넣지 않는다(비공개 — Task 7에서 `infra/cdk.context.json`에 넣는다. 이 파일은 이미 `.gitignore`에 있다).
+
+- [ ] **Step 4: `cd infra && npm test` → PASS (tsc 포함)**
+
+- [ ] **Step 5: synth 확인**
+
+Run: `cd infra && npx cdk synth -c alertEmail=a@example.com`
+Expected: 3개 스택 합성 성공. 템플릿에 `Route53` 리소스 없음, 인증서 `DomainName: aquarium-life.n-e.kr`.
+Run: `cd infra && npx cdk synth` (alertEmail 없이) → `alertEmail` 안내 메시지로 실패.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add infra
+git commit -m "feat(infra): use external DNS with manual ACM validation for free domain"
+```
+
+---
+
+### Task 7: 첫 배포 (사용자와 함께) + 문서
+
+이 태스크는 AWS 계정에 실제 리소스를 만든다. 👤 표시는 사용자가 직접 하는 단계다. Task 8이 끝난 뒤에 한다.
+
+**Files:**
+- Create: `infra/cdk.context.json` (git 무시 — `alertEmail`만)
+- Modify: `CLAUDE.md`, `docs/progress.md`(git 무시 파일)
+
+- [ ] **Step 1: 비공개 설정** — `infra/cdk.context.json`에 `{ "alertEmail": "<사용자가 알려 준 주소>" }`. `git status`에 나타나지 않는지 확인.
 - [ ] **Step 2: 👤 `aws login`** 후 확인: `aws sts get-caller-identity` → 계정 ID 출력.
-- [ ] **Step 3: 기존 OIDC 공급자 확인**
-
-Run: `aws iam list-open-id-connect-providers`
-있으면 그 ARN을 `githubOidcProviderArn`으로 context에 넣는다.
-
-- [ ] **Step 4: `infra/cdk.json` context에 `domainName`, `hostedZoneId`, `alertEmail` 채우기.** (도메인·이메일은 공개 저장소에 올라간다는 점을 사용자에게 확인. 원치 않으면 `cdk.context.json`(무시됨)이나 `-c`로 넘긴다.)
-- [ ] **Step 5: 부트스트랩과 배포**
+- [ ] **Step 3: 기존 OIDC 공급자 확인** — `aws iam list-open-id-connect-providers`. GitHub 공급자가 있으면 그 ARN을 `cdk.context.json`의 `githubOidcProviderArn`으로.
+- [ ] **Step 4: 부트스트랩과 diff**
 
 Run: `cd infra && npx cdk bootstrap aws://<계정>/ap-northeast-2 aws://<계정>/us-east-1`
-Run: `npx cdk diff` 결과를 사용자에게 보여 주고 승인을 받은 뒤 `npx cdk deploy --all`
-Expected: 스택 3개 `CREATE_COMPLETE`, 출력 `BucketName`, `DistributionId`, `SiteUrl`, `DeployRoleArn`. 인증서 DNS 검증 때문에 수 분 걸릴 수 있다.
+Run: `npx cdk diff` → 결과를 사용자에게 보여 주고 승인을 받는다.
 
-- [ ] **Step 6: GitHub 저장소 변수 설정**
+- [ ] **Step 5: 인증서 스택 배포 + 👤 검증용 CNAME 입력**
+
+Run (백그라운드): `npx cdk deploy AquariumCertificate --require-approval never`
+배포가 인증서 발급을 기다리는 동안 `aws acm list-certificates --region us-east-1`과 `aws acm describe-certificate --region us-east-1 --certificate-arn <arn> --query "Certificate.DomainValidationOptions[0].ResourceRecord"`로 검증 레코드(Name, Value)를 읽어 사용자에게 알려 준다.
+👤 도메인 서비스의 별칭(CNAME)에: 앞 칸 = Name에서 `.aquarium-life.n-e.kr.`을 뗀 부분(`_…`), 값 = Value에서 끝 점을 뗀 것.
+확인: `nslookup -type=CNAME <Name> 8.8.8.8`이 Value를 돌려주고, 스택이 `CREATE_COMPLETE`가 된다.
+
+- [ ] **Step 6: 나머지 스택 배포**
+
+Run: `npx cdk deploy AquariumSite AquariumGithubDeploy`
+Expected: `BucketName`, `DistributionId`, `DistributionDomainName`, `SiteUrl`, `DeployRoleArn` 출력.
+
+- [ ] **Step 7: 👤 사이트 CNAME 입력** — 도메인 서비스의 빈 칸 별칭(CNAME) 값을 `example.com`에서 `DistributionDomainName`(예: `d1234abcd.cloudfront.net`)으로 바꾼다. `_acmtest` 시험 레코드가 남아 있으면 지운다. 확인: `nslookup -type=CNAME aquarium-life.n-e.kr 8.8.8.8`.
+
+- [ ] **Step 8: GitHub 저장소 변수 설정**
 
 ```bash
 gh variable set AWS_REGION --body ap-northeast-2
@@ -387,19 +452,18 @@ gh variable set S3_BUCKET --body <BucketName>
 gh variable set CLOUDFRONT_DISTRIBUTION_ID --body <DistributionId>
 ```
 
-- [ ] **Step 7: 문서**
-  - `CLAUDE.md` 명령어에 `npm test`, `npm run deploy`(로컬 수동 배포, 환경 변수 필요), `cd infra && npx cdk deploy --all`(인프라 변경 시) 추가. "`main`에 push하면 자동 배포된다" 한 줄.
-  - `docs/progress.md`: 작업 로그, 2.3 개발용 기능에 "`?variants`는 개발 서버에서만" 반영, 4장의 favicon 404 메모 삭제, 배포 URL 기록.
-  - Commit: `git add CLAUDE.md infra/cdk.json && git commit -m "docs: document deploy workflow and set production config"`
+- [ ] **Step 9: 문서**
+  - `CLAUDE.md` 명령어에 `npm test`, `npm run deploy`(로컬 수동 배포, 환경 변수 필요), `cd infra && npx cdk deploy --all`(인프라 변경 시, `alertEmail`은 `infra/cdk.context.json`) 추가. "`main`에 push하면 자동 배포된다" 한 줄. "DNS는 무료 도메인 서비스에서 관리하고, 인증서를 바꾸려면 새 인증서를 먼저 만들고 검증 CNAME을 넣은 뒤 교체한다" 한 줄.
+  - `docs/progress.md`: 작업 로그, 배포 URL, favicon 404 메모 삭제.
+  - Commit: `git add CLAUDE.md && git commit -m "docs: document deploy workflow"`
 
-- [ ] **Step 8: 👤 승인 후 push하고 확인 (스펙 3.9)**
+- [ ] **Step 10: 👤 승인 후 `main` 병합·push, 확인 (스펙 3.9)**
 
 Run: `git push` → `gh run watch`
 Expected: deploy 워크플로 성공. 그다음:
-- `curl -sI https://<도메인>/` → `200`, `cache-control: no-cache`, `strict-transport-security` 있음.
-- `curl -sI http://<도메인>/` → `301`, `location: https://...`.
-- `curl -sI https://www.<도메인>/` → `200`.
-- `curl -sI https://<도메인>/assets/<해시 파일>` → `cache-control: public,max-age=31536000,immutable`.
+- `curl -sI https://aquarium-life.n-e.kr/` → `200`, `cache-control: no-cache`, `strict-transport-security` 있음.
+- `curl -sI http://aquarium-life.n-e.kr/` → `301`, `location: https://...`.
+- `curl -sI https://aquarium-life.n-e.kr/assets/<해시 파일>` → `cache-control: public,max-age=31536000,immutable`.
 - `curl -sI https://<BucketName>.s3.ap-northeast-2.amazonaws.com/index.html` → `403`.
-- Playwright로 `https://<도메인>/?variants` → 구피 1마리, 이름표 없음, 콘솔 오류 0개.
+- Playwright로 `https://aquarium-life.n-e.kr/?variants` → 구피 1마리, 이름표 없음, 콘솔 오류 0개.
 - 작은 문서 변경으로 PR을 열어 `ci.yml`만 돌고 배포는 안 되는지 확인.

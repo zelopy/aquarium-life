@@ -18,7 +18,7 @@
 |---|---|---|
 | 대상 연령 | 전 연령 캐주얼 (아이도 플레이) | 규제상 "혼합 대상"으로 보고 아동 보호 기준을 적용한다 |
 | 광고 목적 | 서버비 충당 + 게임 안의 재미 요소 | 수익 극대화보다 보상 경험을 우선한다 |
-| 도메인 | 새로 구매 (Route 53) | AWS 안에서 연결을 끝낼 수 있다 |
+| 도메인 | 무료 도메인 `aquarium-life.n-e.kr` (무료 도메인 서비스, DNS는 그 서비스에서 관리) | AWS 프리 플랜에서 Route 53 도메인 구매를 쓸 수 없음. 2026-11-06 변경 |
 | 배포 방식 | S3 + CloudFront + ACM | 정적 사이트라 서버가 필요 없고 거의 무료다. EC2 대신 선택 |
 | 인프라 코드 | AWS CDK (TypeScript), `infra/` | 게임과 같은 언어. 다시 만들거나 수정하기 쉽다 |
 
@@ -48,7 +48,7 @@
 
 ### 3.1 구성
 ```
-사용자 → Route 53 (도메인) → CloudFront (HTTPS, CDN) → S3 (비공개 버킷, dist/)
+사용자 → 무료 도메인 DNS (CNAME) → CloudFront (HTTPS, CDN) → S3 (비공개 버킷, dist/)
                                └ ACM 인증서 (us-east-1)
 ```
 
@@ -56,8 +56,8 @@
 |---|---|
 | S3 버킷 | 퍼블릭 접근 전면 차단. CloudFront만 OAC(Origin Access Control)로 읽음 |
 | CloudFront | HTTP→HTTPS 리디렉션, 압축(gzip/brotli), 기본 문서 `index.html`, HTTP/2·HTTP/3 |
-| ACM 인증서 | CloudFront용이므로 **us-east-1**에 발급. 루트 도메인 + `www` 포함. DNS 검증 |
-| Route 53 | 루트 도메인과 `www`를 CloudFront로 연결 (A/AAAA 별칭 레코드) |
+| ACM 인증서 | CloudFront용이므로 **us-east-1**에 발급. `aquarium-life.n-e.kr` 하나. **수동 DNS 검증**: `cdk deploy` 중 ACM이 알려 주는 검증용 CNAME(`_….aquarium-life.n-e.kr`)을 사용자가 도메인 서비스에 입력하고, 발급될 때까지 배포가 대기한다 |
+| DNS 연결 | 배포 후 출력되는 CloudFront 주소(`d….cloudfront.net`)를 도메인 서비스에서 `aquarium-life.n-e.kr`의 CNAME 값으로 입력. `www`는 쓰지 않는다 |
 | 보안 헤더 | CloudFront 응답 헤더 정책 (HSTS, `X-Content-Type-Options`, `Referrer-Policy`). CSP는 Part B에서 광고 스크립트 도메인을 정한 뒤 추가 |
 
 ### 3.2 캐시 정책
@@ -71,12 +71,13 @@
 - 게임 코드와 분리된 CDK 앱이다. `package.json`도 따로 둔다.
 - 스택 구성
   - `CertificateStack` (us-east-1): ACM 인증서
-  - `SiteStack`: S3, CloudFront, Route 53 레코드, 예산 알림
+  - `SiteStack`: S3, CloudFront, 예산 알림 (Route 53 없음)
   - `GithubDeployStack`: GitHub OIDC 공급자 + 배포용 IAM 역할 (3.10)
 - 게임 파일 업로드는 CDK가 아니라 배포 스크립트가 한다 (3.4). CDK `BucketDeployment`는 쓰지 않는다. 두 곳에서 같은 버킷을 고치면 서로 덮어쓰기 때문이다.
 - 스택 출력값: 버킷 이름, CloudFront 배포 ID, 배포 역할 ARN. GitHub 저장소 변수에 넣는다.
 - 도메인 이름과 알림 이메일은 CDK context(`cdk.json`)로 받는다. 코드에 하드코딩하지 않는다.
-- 도메인 **구매**는 CDK로 할 수 없으므로 콘솔에서 직접 한 번 한다. 구매하면 생기는 호스팅 영역은 CDK에서 조회(`HostedZone.fromLookup`)해서 쓴다.
+- DNS 레코드(인증서 검증용 CNAME, 사이트 CNAME)는 CDK 밖에서 사용자가 도메인 서비스 관리 화면에 직접 넣는다. 2026-11-06에 이 서비스가 도메인 자체 CNAME과 밑줄로 시작하는 하위 이름 CNAME을 모두 지원함을 확인했다.
+- 설정 값: `domainName`(공개, `cdk.json`), `alertEmail`(**비공개**, git에 올라가지 않는 `infra/cdk.context.json`).
 
 ### 3.4 배포 명령
 배포를 **인프라**와 **게임 파일** 두 가지로 나눈다.
@@ -110,17 +111,16 @@
 ### 3.7 예상 비용
 | 항목 | 비용 |
 |---|---|
-| 도메인 (.com) | 연 약 $15 |
-| Route 53 호스팅 영역 | 월 $0.50 |
+| 도메인 | 무료 (서비스의 연장 규칙을 지켜야 함) |
 | S3 + CloudFront | 트래픽이 적으면 거의 $0 (CloudFront 무료 한도: 월 1TB 전송) |
 | ACM 인증서 | 무료 |
 
 ### 3.8 사전 준비 (사용자)
 - AWS 계정, 로컬 AWS CLI 인증(`aws login`)
-- Route 53에서 도메인 구매
+- 무료 도메인 등록 (완료: `aquarium-life.n-e.kr`), 도메인 서비스 관리 화면 접근
 
 ### 3.9 확인 방법
-- `https://<도메인>`과 `https://www.<도메인>`에서 게임이 뜨고 구피가 헤엄친다.
+- `https://aquarium-life.n-e.kr`에서 게임이 뜨고 구피가 헤엄친다.
 - `http://`로 접속하면 HTTPS로 넘어간다.
 - S3 객체 URL로 직접 접근하면 거부된다(403).
 - 응답 헤더: `index.html`은 `no-cache`, `assets/*`는 `immutable`.
@@ -206,6 +206,7 @@
 
 ### 4.7 승인 준비
 - AdSense 계정 생성 → 사이트(도메인) 등록 → H5 Games Ads 별도 신청.
+- 공유 무료 도메인(`*.n-e.kr`)의 하위 주소는 AdSense 승인이 어려울 수 있다. 광고를 신청할 때 유료 도메인으로 옮기는 것을 검토한다. 유료 도메인의 루트에는 CNAME을 걸 수 없으므로, 그때는 CNAME 평탄화를 지원하는 DNS나 Route 53 별칭이 필요하다.
 - `ads.txt`에 게시자 ID를 넣는다.
 - `privacy.html`에 광고 항목을 추가한다 (3.6).
 
@@ -226,6 +227,5 @@
 ---
 
 ## 5. 열린 질문
-- 도메인 이름 (구매할 때 결정)
 - 배포 리전: 서울(`ap-northeast-2`)을 기본으로 한다. S3 버킷 위치만 정하는 것이고, CloudFront는 전 세계에서 서빙한다.
 - H5 Games Ads 승인이 거절되면 대안 (Ad Manager 보상형 광고 등)은 그때 검토한다.
