@@ -34,6 +34,8 @@ export const BALANCE = {
     maxFlakes: 40,
     /** 먹이를 쫓을 때 평소 속도에 곱하는 배율 */
     chaseSpeedFactor: 1.3,
+    /** 먹이를 쫓을 때 감속을 시작하는 거리 (px). 평소(60)보다 짧아야 가라앉는 먹이를 따라잡는다 */
+    chaseArriveRadiusPx: 20,
     /** 입이 이 거리(px) 안에 들면 먹는다 */
     eatRadiusPx: 8,
     /** 수면 아래 이 깊이(px)까지 누르면 먹이를 준다 */

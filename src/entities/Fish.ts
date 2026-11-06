@@ -86,9 +86,12 @@ export class Fish {
     const dist = Math.hypot(dx, dy);
 
     // 목표 지점으로 조향. 가까워지면 감속(arrive).
-    const speed = this.maxSpeed * this.speedFactor * Math.min(1, dist / 60);
+    // 쫓는 중에는 감속 거리를 줄이고 세로 속도도 줄이지 않아, 가라앉는 먹이를 따라잡는다.
+    const arriveRadius = this.isChasing ? BALANCE.feeding.chaseArriveRadiusPx : 60;
+    const verticalFactor = this.isChasing ? 1 : 0.6;
+    const speed = this.maxSpeed * this.speedFactor * Math.min(1, dist / arriveRadius);
     const desiredVx = dist > 0 ? (dx / dist) * speed : 0;
-    const desiredVy = dist > 0 ? (dy / dist) * speed * 0.6 : 0;
+    const desiredVy = dist > 0 ? (dy / dist) * speed * verticalFactor : 0;
     const steer = Math.min(1, dt * 1.6);
     this.vx += (desiredVx - this.vx) * steer;
     this.vy += (desiredVy - this.vy) * steer;

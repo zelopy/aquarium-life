@@ -108,4 +108,16 @@ describe("FeedingSystem", () => {
     expect(a.chasing).toBe(false);
     expect(b.chasing).toBe(false);
   });
+
+  it("바로 아래로 가라앉는 알갱이도 따라잡아 먹는다", () => {
+    const fish = makeFish(400, 200);
+    const food = new Food(400, 260);
+    const foods = [food];
+    for (let i = 0; i < 60 * 20 && foods.length > 0 && food.state === "sinking"; i++) {
+      food.update(1 / 60, tank);
+      feeding.update(1 / 60, [fish], foods, tank);
+      fish.update(1 / 60, tank);
+    }
+    expect(foods.length).toBe(0);
+  });
 });

@@ -84,4 +84,16 @@ describe("Game.dropFood", () => {
     game.update(1);
     expect(game.foods).toHaveLength(0);
   });
+
+  it("멀리 뿌린 먹이도 물고기가 쫓아가 먹는다", () => {
+    const game = new Game();
+    game.fishes[0].x = 740;
+    game.fishes[0].y = 250;
+    game.fishes[1].x = 800;
+    game.fishes[1].y = 250;
+    for (const f of game.fishes) f.fullness = 50;
+    game.dropFood(100);
+    for (let i = 0; i < 60 * 32; i++) game.update(1 / 60);
+    expect(game.foods.length).toBeLessThanOrEqual(2);
+  });
 });
